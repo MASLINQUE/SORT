@@ -162,17 +162,6 @@ func (s *SORT) Updatez(items []gjson.Result, width float64, height float64, fo *
 	}
 	fo.WriteString("check after add delete indexes")
 
-	//remove dead trackers
-	// ti := len(s.Trackers)
-	// for t := ti - 1; t >= 0; t-- {
-	// 	trk := s.Trackers[t]
-	// 	//         if((trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits)):
-	// 	//           ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
-	// 	if trk.PredictsSinceUpdate > s.maxPredictsWithoutUpdate || trk.SkipPredicts > s.minUpdatesUsePrediction+1 {
-	// 		s.Trackers = append(s.Trackers[:t], s.Trackers[t+1:]...)
-	// 		logrus.Debugf("Tracker removed. id=%d, bbox=%v updates=%d\n", trk.ID, trk.LastBBox, trk.Updates)
-	// 	}
-	// }
 	if len(delete_ind) > 0 {
 		s.RemoveTrackByIndexs(delete_ind)
 	}
@@ -180,95 +169,11 @@ func (s *SORT) Updatez(items []gjson.Result, width float64, height float64, fo *
 	for _, v := range s.Trackers {
 		ct = ct + fmt.Sprintf("[id=%d bbox=%v updates=%d] ", v.ID, v.LastBBox, v.Updates)
 	}
-	// fo.WriteString("check8")
 
 	// logrus.Debugf("Current trackers=%s", ct)
 	fo.WriteString(fmt.Sprintf("Current trackers=%s \n", ct))
 	return items_string, nil
 }
-
-// func (s *SORT) Update(dets [][]float64) error {
-// 	logrus.Debugf("SORT Update dets=%v iouThreshold=%f", dets, s.iouThreshold)
-// 	s.FrameCount = s.FrameCount + 1
-
-// 	//NOT SURE HOW KALMAN ALGO WILL SHOW ERRORS. SEE LATER AND REMOVE INVALID PREDICTORS
-// 	// trks := make([]KalmanBoxTracker, 0)
-// 	// for _, v := range s.Trackers {
-// 	// 	trks = append(trks, v)
-// 	// }
-// 	// get predicted locations from existing trackers.
-// 	//     trks = np.zeros((len(self.trackers),5))
-// 	//     to_del = []
-// 	//     ret = []
-// 	//     for t,trk in enumerate(trks):
-// 	//       pos = self.trackers[t].predict()[0]
-// 	//       trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
-// 	//       if(np.any(np.isnan(pos))):
-// 	//         to_del.append(t)
-// 	//     trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
-// 	//     for t in reversed(to_del):
-// 	//       self.trackers.pop(t)
-
-// 	matched, unmatchedDets, unmatchedTrks := associateDetectionsToTrackers(dets, s.Trackers, s.iouThreshold, s.minUpdatesUsePrediction)
-
-// 	logrus.Debugf("Detection X Trackers. matched=%v unmatchedDets=%v unmatchedTrks=%v", matched, unmatchedDets, unmatchedTrks)
-
-// 	// update matched trackers with assigned detections
-// 	for t := 0; t < len(s.Trackers); t++ {
-// 		tracker := s.Trackers[t]
-// 		//is this tracker still matched?
-// 		if !contains(unmatchedTrks, t) {
-// 			for _, det := range matched {
-// 				if det[1] == t {
-// 					bbox := dets[det[0]]
-// 					_, err := tracker.Update(bbox)
-// 					if err != nil {
-// 						return nil
-// 					}
-// 					logrus.Debugf("Tracker updated. id=%d bbox=%v updates=%d\n", tracker.ID, bbox, tracker.Updates)
-// 					break
-// 				}
-// 			}
-// 			// d = matched[np.where(matched[:,1]==t)[0],0]
-// 			// trk.update(dets[d,:][0])
-// 		}
-// 	}
-
-// 	// create and initialise new trackers for unmatched detections
-// 	for _, udet := range unmatchedDets {
-
-// 		// aread := Area(dets[udet])
-// 		// if aread < 1 {
-// 		// 	logrus.Debugf("Ignoring too small detection. bbox=%f area=%f", dets[udet], aread)
-// 		// 	continue
-// 		// }
-
-// 		trk, _ := NewKalmanBoxTracker(dets[udet])
-
-// 		s.Trackers = append(s.Trackers, &trk)
-// 		logrus.Debugf("New tracker added. id=%d bbox=%v\n", trk.ID, trk.LastBBox)
-// 	}
-
-// 	//remove dead trackers
-// 	ti := len(s.Trackers)
-// 	for t := ti - 1; t >= 0; t-- {
-// 		trk := s.Trackers[t]
-// 		//         if((trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits)):
-// 		//           ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
-// 		if trk.PredictsSinceUpdate > s.maxPredictsWithoutUpdate || trk.SkipPredicts > s.minUpdatesUsePrediction+1 {
-// 			s.Trackers = append(s.Trackers[:t], s.Trackers[t+1:]...)
-// 			logrus.Debugf("Tracker removed. id=%d, bbox=%v updates=%d\n", trk.ID, trk.LastBBox, trk.Updates)
-// 		}
-// 	}
-
-// 	ct := ""
-// 	for _, v := range s.Trackers {
-// 		ct = ct + fmt.Sprintf("[id=%d bbox=%v updates=%d] ", v.ID, v.LastBBox, v.Updates)
-// 	}
-// 	logrus.Debugf("Current trackers=%s", ct)
-
-// 	return nil
-// }
 
 func contains(list []int, value int) bool {
 	found := false
@@ -340,13 +245,9 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 				trk.SkipPredicts = trk.SkipPredicts + 1
 			}
 
-			// tbbox1 := trk.LastBBox
-			// tbbox = ResizeFromCenter(trk.LastBBox, 4.0)
-			// fmt.Printf("ioubbox - %v %v", tbbox, tbbox1)
 			v := IOU(detections[d], tbbox) //+ AreaMatch(detections[d], tbbox1) + RatioMatch(detections[d], tbbox1)
 			trk.LastBBoxIOU = tbbox
-			// if v > 0 {
-			// logrus.Debugf("IOU=%v detbbox=%v trackerrefbbox=%v trackerid=%d lastbbox=%v", v, detections[d], tbbox, trackers[t].ID, trackers[t].LastBBox)
+
 			fo.WriteString(fmt.Sprintf("IOU=%v detbbox=%v trackerrefbbox=%v trackerid=%d lastbbox=%v", v, detections[d], tbbox, trackers[t].ID, trackers[t].LastBBox))
 			// }
 			//invert cost matrix (we want max cost here)

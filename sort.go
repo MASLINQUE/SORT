@@ -2,12 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 
-	"github.com/sirupsen/logrus"
 	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	// "github.com/cpmech/gosl"
 )
 
@@ -53,7 +49,7 @@ func (s *SORT) RemoveTrackByIndexs(indxs []int) {
 
 }
 
-func (s *SORT) Updatez(items []gjson.Result, width float64, height float64, fo *os.File) ([]string, error) {
+func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]float64, [][]float64) {
 
 	dets := [][]float64{}
 	for _, item := range items {
@@ -62,48 +58,18 @@ func (s *SORT) Updatez(items []gjson.Result, width float64, height float64, fo *
 			bbox = append(bbox, value.Num)
 			return true
 		})
-		bbox = []float64{bbox[0] * width, bbox[1] * height, bbox[0]*width + bbox[2]*width, bbox[1]*height + bbox[3]*height}
+		// bbox = []float64{bbox[0] * width, bbox[1] * height, bbox[0]*width + bbox[2]*width, bbox[1]*height + bbox[3]*height}
+		bbox = []float64{bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]}
+
 		bbox_prob := append(bbox, item.Get("prob").Num)
 		dets = append(dets, bbox_prob)
-		// logrus.Debugf("SORT Update dets=%v iouThreshold=%f", bbox_prob, s.iouThreshold)
-		fo.WriteString(fmt.Sprintf("SORT Update dets=%v iouThreshold=%f \n", bbox_prob, s.iouThreshold))
-	}
-	fo.WriteString("check after get detections \n")
 
-	items_string := []string{}
-	for _, item := range items {
-		items_string = append(items_string, item.String())
 	}
-	fo.WriteString("check after get items \n")
+	bboxesAndID := [][]float64{}
 
-	// func (s *SORT) Updatez(dets [][]float64) error {
-	// 	logrus.Debugf("SORT Update dets=%v iouThreshold=%f", dets, s.iouThreshold)
 	s.FrameCount = s.FrameCount + 1
 
-	//NOT SURE HOW KALMAN ALGO WILL SHOW ERRORS. SEE LATER AND REMOVE INVALID PREDICTORS
-	// trks := make([]KalmanBoxTracker, 0)
-	// for _, v := range s.Trackers {
-	// 	trks = append(trks, v)
-	// }
-	// get predicted locations from existing trackers.
-	//     trks = np.zeros((len(self.trackers),5))
-	//     to_del = []
-	//     ret = []
-	//     for t,trk in enumerate(trks):
-	//       pos = self.trackers[t].predict()[0]
-	//       trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
-	//       if(np.any(np.isnan(pos))):
-	//         to_del.append(t)
-	//     trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
-	//     for t in reversed(to_del):
-	//       self.trackers.pop(t)
-
-	matched, unmatchedDets, unmatchedTrks := associateDetectionsToTrackers(dets, s.Trackers, s.iouThreshold, s.minUpdatesUsePrediction, fo)
-	// fo.WriteString("check4")
-
-	fo.WriteString(fmt.Sprintf("Detection X Trackers. matched=%v unmatchedDets=%v unmatchedTrks=%v \n", matched, unmatchedDets, unmatchedTrks))
-	fo.WriteString("check after get items \n")
-	// logrus.Debugf("Detection X Trackers. matched=%v unmatchedDets=%v unmatchedTrks=%v", matched, unmatchedDets, unmatchedTrks)
+	matched, unmatchedDets, unmatchedTrks := associateDetectionsToTrackers(dets, s.Trackers, s.iouThreshold, s.minUpdatesUsePrediction)
 
 	// update matched trackers with assigned detections
 	for t := 0; t < len(s.Trackers); t++ {
@@ -113,54 +79,38 @@ func (s *SORT) Updatez(items []gjson.Result, width float64, height float64, fo *
 			for _, det := range matched {
 				if det[1] == t {
 					bbox := dets[det[0]]
-					// _, err :=
 					tracker.Update(bbox)
-					items_string[det[0]], _ = sjson.Set(items_string[det[0]], "id", strconv.FormatInt(int64(tracker.ID), 10))
-					// if err != nil {
-					// 	return err
-					// }
-					logrus.Debugf("Tracker updated. id=%d bbox=%v updates=%d \n", tracker.ID, bbox, tracker.Updates)
-					// fo.WriteString(fmt.Sprintf("Tracker updated. id=%d bbox=%v updates=%d\n", tracker.ID, bbox, tracker.Updates))
+					bboxID := bbox[:len(bbox)-1]
+					bboxID = append(bboxID, float64(tracker.ID))
+					bboxesAndID = append(bboxesAndID, bboxID)
 					break
 				}
 			}
-			// d = matched[np.where(matched[:,1]==t)[0],0]
-			// trk.update(dets[d,:][0])
+
 		}
 	}
-	fo.WriteString("check ater update detections \n")
 
 	// create and initialise new trackers for unmatched detections
 	for _, udet := range unmatchedDets {
 
-		// aread := Area(dets[udet])
-		// if aread < 1 {
-		// 	logrus.Debugf("Ignoring too small detection. bbox=%f area=%f", dets[udet], aread)
-		// 	continue
-		// }
-
 		trk, _ := NewKalmanBoxTracker(dets[udet])
 
 		s.Trackers = append(s.Trackers, &trk)
-		items_string[udet], _ = sjson.Set(items_string[udet], "id", strconv.FormatInt(int64(s.Trackers[len(s.Trackers)-1].ID), 10))
-		// logrus.Debugf("New tracker added. id=%d bbox=%v\n", trk.ID, trk.LastBBox)
-		fo.WriteString(fmt.Sprintf("New tracker added. id=%d bbox=%v \n", trk.ID, trk.LastBBox))
+		ls_bbox := s.Trackers[len(s.Trackers)-1].LastBBox
+		ls_bbox = append(ls_bbox, float64(s.Trackers[len(s.Trackers)-1].ID))
+
+		bboxesAndID = append(bboxesAndID, ls_bbox)
+
 	}
-	fo.WriteString("check after unmatched tracks and add new tracks \n")
 
 	delete_ind := []int{}
 	for _, t := range unmatchedTrks {
 		trk := s.Trackers[t]
-		//         if((trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits)):
-		//           ret.append(np.concatenate((d,[trk.id+1])).reshape(1,-1)) # +1 as MOT benchmark requires positive
+
 		if trk.PredictsSinceUpdate > s.maxPredictsWithoutUpdate || trk.SkipPredicts > s.minUpdatesUsePrediction+1 {
-			// s.Trackers = append(s.Trackers[:t], s.Trackers[t+1:]...)
 			delete_ind = append(delete_ind, t)
-			// logrus.Debugf("Tracker removed. id=%d, bbox=%v updates=%d\n", trk.ID, trk.LastBBox, trk.Updates)
-			fo.WriteString(fmt.Sprintf("Tracker removed. id=%d, bbox=%v updates=%d \n", trk.ID, trk.LastBBox, trk.Updates))
 		}
 	}
-	fo.WriteString("check after add delete indexes")
 
 	if len(delete_ind) > 0 {
 		s.RemoveTrackByIndexs(delete_ind)
@@ -170,9 +120,7 @@ func (s *SORT) Updatez(items []gjson.Result, width float64, height float64, fo *
 		ct = ct + fmt.Sprintf("[id=%d bbox=%v updates=%d] ", v.ID, v.LastBBox, v.Updates)
 	}
 
-	// logrus.Debugf("Current trackers=%s", ct)
-	fo.WriteString(fmt.Sprintf("Current trackers=%s \n", ct))
-	return items_string, nil
+	return bboxesAndID, dets
 }
 
 func contains(list []int, value int) bool {
@@ -188,7 +136,7 @@ func contains(list []int, value int) bool {
 
 //   Assigns detections to tracked object (both represented as bounding boxes)
 //   Returns 3 lists of indexes: matches, unmatched_detections and unmatched_trackers
-func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBoxTracker, iouThreshold float64, minUpdatesUsePrediction int, fo *os.File) ([][]int, []int, []int) {
+func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBoxTracker, iouThreshold float64, minUpdatesUsePrediction int) ([][]int, []int, []int) {
 	if len(trackers) == 0 {
 		det := make([]int, 0)
 		for i := range detections {
@@ -210,22 +158,16 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 		return [][]int{}, []int{}, unmatchedTrackers
 	}
 
-	// iouMatrix := make([][]float64, ld)
-	// fo.WriteString("check3.1")
 	mk := Munkres{}
 	mk.Init(int(ld), int(lt))
 
-	// mm := munkres.NewMatrix(ld, lt)
-	//initialize IOUS cost matrix
 	ious := make([][]float64, ld)
 	for i := 0; i < len(ious); i++ {
 		ious[i] = make([]float64, lt)
 	}
-	// fo.WriteString("check3.2")
 
 	predicted := make([]bool, lt)
 	for d := 0; d < ld; d++ {
-		// iouMatrix[d] = make([]float64, lt)
 		for t := 0; t < lt; t++ {
 			trk := trackers[t]
 
@@ -248,13 +190,10 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 			v := IOU(detections[d], tbbox) //+ AreaMatch(detections[d], tbbox1) + RatioMatch(detections[d], tbbox1)
 			trk.LastBBoxIOU = tbbox
 
-			fo.WriteString(fmt.Sprintf("IOU=%v detbbox=%v trackerrefbbox=%v trackerid=%d lastbbox=%v", v, detections[d], tbbox, trackers[t].ID, trackers[t].LastBBox))
-			// }
 			//invert cost matrix (we want max cost here)
 			ious[d][t] = 1 - v
 		}
 	}
-	fo.WriteString("check after predictions")
 
 	//calculate best DETECTION vs TRACKER matches according to COST matrix
 	mk.SetCostMatrix(ious)
@@ -265,10 +204,6 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 			matchedIndices = append(matchedIndices, []int{i, j})
 		}
 	}
-	// fo.WriteString("check3.4")
-
-	// logrus.Debugf("Detection x Tracker match=%v", matchedIndices)
-	fo.WriteString(fmt.Sprintf("Detection x Tracker match=%v", matchedIndices))
 
 	unmatchedDetections := make([]int, 0)
 	for d := 0; d < ld; d++ {
@@ -280,8 +215,7 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 			}
 		}
 		if !found {
-			// logrus.Debugf("Unmatched detection found. bbox=%v", detections[d])
-			fo.WriteString(fmt.Sprintf("Unmatched detection found. bbox=%v", detections[d]))
+
 			unmatchedDetections = append(unmatchedDetections, d)
 		}
 	}
@@ -305,15 +239,13 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 		//filter out matched with low IOU
 		iou := 1 - ious[mi[0]][mi[1]]
 		if iou < iouThreshold {
-			// logrus.Debugf("Skipping detection/tracker because it has low IOU deti=%d trki=%d iou=%f", mi[0], mi[1], iou)
-			fo.WriteString(fmt.Sprintf("Skipping detection/tracker because it has low IOU deti=%d trki=%d iou=%f", mi[0], mi[1], iou))
+
 			unmatchedDetections = append(unmatchedDetections, mi[0])
 			unmatchedTrackers = append(unmatchedTrackers, mi[1])
 		} else {
 			matches = append(matches, []int{mi[0], mi[1]})
 		}
 	}
-	fo.WriteString("check after fill matched unmatcheddet and unmatchedtrackers")
 
 	return matches, unmatchedDetections, unmatchedTrackers
 }

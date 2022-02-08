@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/tidwall/gjson"
-	// "github.com/cpmech/gosl"
+	"github.com/cpmech/gosl/graph"
 )
 
 //SORT Detection tracking
@@ -58,11 +58,10 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 			bbox = append(bbox, value.Num)
 			return true
 		})
-		// bbox = []float64{bbox[0] * width, bbox[1] * height, bbox[0]*width + bbox[2]*width, bbox[1]*height + bbox[3]*height}
-		bbox = []float64{bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]}
+		bbox = []float64{bbox[0] * width, bbox[1] * height, bbox[0]*width + bbox[2]*width, bbox[1]*height + bbox[3]*height, item.Get("prob").Num}
+		// bbox = []float64{bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]}
 
-		bbox_prob := append(bbox, item.Get("prob").Num)
-		dets = append(dets, bbox_prob)
+		dets = append(dets, bbox)
 
 	}
 	bboxesAndID := [][]float64{}
@@ -70,6 +69,10 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 	s.FrameCount = s.FrameCount + 1
 
 	matched, unmatchedDets, unmatchedTrks := associateDetectionsToTrackers(dets, s.Trackers, s.iouThreshold, s.minUpdatesUsePrediction)
+
+	// log.Printf("matched %v", matched)
+	// log.Printf("unmatchedDets %v", unmatchedDets)
+	// log.Printf("unmatchedTrks %v", unmatchedTrks)
 
 	// update matched trackers with assigned detections
 	for t := 0; t < len(s.Trackers); t++ {
@@ -79,8 +82,8 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 			for _, det := range matched {
 				if det[1] == t {
 					bbox := dets[det[0]]
-					tracker.Update(bbox)
 					bboxID := bbox[:len(bbox)-1]
+					tracker.Update(bboxID)
 					bboxID = append(bboxID, float64(tracker.ID))
 					bboxesAndID = append(bboxesAndID, bboxID)
 					break
@@ -94,10 +97,9 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 	for _, udet := range unmatchedDets {
 
 		trk, _ := NewKalmanBoxTracker(dets[udet])
-
+		ls_bbox := trk.LastBBox
+		ls_bbox = append(ls_bbox, float64(trk.ID))
 		s.Trackers = append(s.Trackers, &trk)
-		ls_bbox := s.Trackers[len(s.Trackers)-1].LastBBox
-		ls_bbox = append(ls_bbox, float64(s.Trackers[len(s.Trackers)-1].ID))
 
 		bboxesAndID = append(bboxesAndID, ls_bbox)
 
@@ -158,7 +160,7 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 		return [][]int{}, []int{}, unmatchedTrackers
 	}
 
-	mk := Munkres{}
+	mk := graph.Munkres{}
 	mk.Init(int(ld), int(lt))
 
 	ious := make([][]float64, ld)
@@ -194,6 +196,7 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 			ious[d][t] = 1 - v
 		}
 	}
+	// log.Printf("ious matrix %v", ious)
 
 	//calculate best DETECTION vs TRACKER matches according to COST matrix
 	mk.SetCostMatrix(ious)

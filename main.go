@@ -61,11 +61,12 @@ func track(reqdata []byte, sort *SORT, width float64, height float64) {
 			bbox_det = append(bbox_det, value.Num)
 			return true
 		})
-		bbox_det = []float64{bbox_det[0], bbox_det[1], bbox_det[0] + bbox_det[2], bbox_det[1] + bbox_det[3]}
+		// bbox_det = []float64{bbox_det[0], bbox_det[1], bbox_det[0] + bbox_det[2], bbox_det[1] + bbox_det[3]}
+		bbox_det = []float64{bbox_det[0] * width, bbox_det[1] * height, bbox_det[0]*width + bbox_det[2]*width, bbox_det[1]*height + bbox_det[3]*height}
 		for _, bbox_trc := range bboxesAndIDs {
 			iou := IOU(bbox_det, bbox_trc)
 			if iou > 0.97 {
-				item_str, _ = sjson.Set(item_str, "id", bbox_trc[len(bbox_trc)-1])
+				item_str, _ = sjson.Set(item_str, "id", fmt.Sprintf("%.0f", bbox_trc[len(bbox_trc)-1]))
 				responseStringArray = append(responseStringArray, item_str)
 				break
 			}

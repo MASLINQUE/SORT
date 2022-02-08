@@ -81,6 +81,7 @@ func NewKalmanBoxTracker(bbox []float64) (KalmanBoxTracker, error) {
 			0, 0, 0, 0, 0, 10, 0,
 			0, 0, 0, 0, 0, 0, 10}),
 	}
+
 	// self.M = np.zeros((dim_z, dim_z)) # process-measurement cross correlation
 	// self.K = np.zeros((dim_x, dim_z)) # kalman gain
 	// self.S = np.zeros((dim_z, dim_z)) # system uncertainty
@@ -89,6 +90,7 @@ func NewKalmanBoxTracker(bbox []float64) (KalmanBoxTracker, error) {
 	ctrl := mat.NewVecDense(7, nil)
 
 	z := mat.NewVecDense(4, convertBBoxToZ(bbox))
+
 	kf.Apply(&kctx, z, ctrl)
 
 	lastID = lastID + 1
@@ -158,6 +160,7 @@ func (k *KalmanBoxTracker) Updatez(bbox []float64) {
 func (k *KalmanBoxTracker) PredictNext() []float64 {
 	k.SkipPredicts = 0
 	x := k.KalmanCtx.X
+
 	if x.AtVec(6)+x.AtVec(2) <= 0 {
 		x.SetVec(6, 0.0)
 	}

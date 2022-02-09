@@ -7,18 +7,21 @@ import (
 //IOU Computes IUO (Intersection Over Union) between two bboxes in the form [x1,y1,x2,y2]
 func IOU(bbox1 []float64, bbox2 []float64) float64 {
 	xx1 := math.Max(bbox1[0], bbox2[0])
-	yy1 := math.Min(bbox1[1], bbox2[1]) //was Max
+	yy1 := math.Max(bbox1[1], bbox2[1]) //was Max
 	xx2 := math.Min(bbox1[2], bbox2[2])
-	yy2 := math.Max(bbox1[3], bbox2[3]) //was Min
-	w := math.Max(0., xx2-xx1)
-	h := math.Max(0., yy2-yy1)
-	wh := w * h
+	yy2 := math.Min(bbox1[3], bbox2[3]) //was Min
 
-	o := wh / (Area(bbox1) + Area(bbox2) - wh)
-	if math.IsNaN(o) {
-		o = 0
+	interArea := math.Max(0., xx2-xx1+1) * math.Max(0, yy2-yy1+1)
+	bbox1Area := (bbox1[2] - bbox1[0] + 1) * (bbox1[3] - bbox1[1] + 1)
+	bbox2Area := (bbox2[2] - bbox2[0] + 1) * (bbox2[3] - bbox2[1] + 1)
+
+	iou := interArea / (bbox1Area + bbox2Area - interArea)
+
+	if math.IsNaN(iou) {
+		iou = 0
 	}
-	return o
+
+	return iou
 }
 
 //RatioMatch computes how close the bbox dimensions from the two bboxes are (0-1). 1-perfect match
@@ -70,7 +73,6 @@ func ResizeFromCenter(bbox []float64, scale float64) []float64 {
 	bbox2[3] = math.Min(bbox[3]+dy+h, 99999)
 	return bbox2
 }
-
 
 //   Takes a bounding box in the form [x1,y1,x2,y2] and returns z in the form
 //     [x,y,s,r] where x,y is the centre of the box and s is the scale/area and r is

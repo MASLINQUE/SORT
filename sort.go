@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/tidwall/gjson"
 	"github.com/cpmech/gosl/graph"
+	"github.com/tidwall/gjson"
 )
 
 //SORT Detection tracking
@@ -58,8 +58,8 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 			bbox = append(bbox, value.Num)
 			return true
 		})
-		bbox = []float64{bbox[0] * width, bbox[1] * height, bbox[0]*width + bbox[2]*width, bbox[1]*height + bbox[3]*height, item.Get("prob").Num}
-		// bbox = []float64{bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]}
+		// bbox = []float64{bbox[0] * width, bbox[1] * height, bbox[0]*width + bbox[2]*width, bbox[1]*height + bbox[3]*height, item.Get("prob").Num}
+		bbox = []float64{bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3], item.Get("prob").Num}
 
 		dets = append(dets, bbox)
 
@@ -83,6 +83,7 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 				if det[1] == t {
 					bbox := dets[det[0]]
 					bboxID := bbox[:len(bbox)-1]
+
 					tracker.Update(bboxID)
 					bboxID = append(bboxID, float64(tracker.ID))
 					bboxesAndID = append(bboxesAndID, bboxID)
@@ -95,10 +96,13 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 
 	// create and initialise new trackers for unmatched detections
 	for _, udet := range unmatchedDets {
-
-		trk, _ := NewKalmanBoxTracker(dets[udet])
+		det := dets[udet]
+		detnonScore := det[:len(det)-1]
+		// fmt.Printf("\n\n dets %v \n\n", detnonScore)
+		trk, _ := NewKalmanBoxTracker(detnonScore)
 		ls_bbox := trk.LastBBox
 		ls_bbox = append(ls_bbox, float64(trk.ID))
+		// fmt.Printf("\n\n ls_bbox %v \n\n", ls_bbox)
 		s.Trackers = append(s.Trackers, &trk)
 
 		bboxesAndID = append(bboxesAndID, ls_bbox)

@@ -35,6 +35,57 @@ func NewKalmanBoxTracker(bbox []float64) (KalmanBoxTracker, error) {
 		return KalmanBoxTracker{}, fmt.Errorf("bbox should contain at least 4 positions: x1,y1,x2,y2")
 	}
 	//define constant velocity model
+	// kf := kalman.NewFilter(
+	// 	lti.Discrete{
+	// 		Ad: mat.NewDense(7, 7, []float64{
+	// 			1, 0, 0, 0, 1, 0, 0,
+	// 			0, 1, 0, 0, 0, 1, 0,
+	// 			0, 0, 1, 0, 0, 0, 1,
+	// 			0, 0, 0, 1, 0, 0, 0,
+	// 			0, 0, 0, 0, 1, 0, 0,
+	// 			0, 0, 0, 0, 0, 1, 0,
+	// 			0, 0, 0, 0, 0, 0, 1}),
+	// 		Bd: mat.NewDense(7, 7, nil),
+	// 		C: mat.NewDense(4, 7, []float64{
+	// 			1, 0, 0, 0, 0, 0, 0,
+	// 			0, 1, 0, 0, 0, 0, 0,
+	// 			0, 0, 1, 0, 0, 0, 0,
+	// 			0, 0, 0, 1, 0, 0, 0}),
+	// 		D: mat.NewDense(4, 7, nil),
+	// 	},
+	// 	kalman.Noise{
+	// 		Q: mat.NewDense(7, 7, []float64{
+	// 			1, 0, 0, 0, 0, 0, 0,
+	// 			0, 1, 0, 0, 0, 0, 0,
+	// 			0, 0, 1, 0, 0, 0, 0,
+	// 			0, 0, 0, 1, 0, 0, 0,
+	// 			0, 0, 0, 0, 0.01, 0, 0,
+	// 			0, 0, 0, 0, 0, 0.01, 0,
+	// 			0, 0, 0, 0, 0, 0, 0.0001}),
+	// 		R: mat.NewDense(4, 4, []float64{
+	// 			1, 0, 0, 0,
+	// 			0, 1, 0, 0,
+	// 			0, 0, 10, 0,
+	// 			0, 0, 0, 10}),
+	// 	},
+	// )
+
+	// kctx := kalman.Context{
+	// 	X: mat.NewVecDense(7, []float64{0, 0, 0, 0, 0, 0, 0}),
+	// 	P: mat.NewDense(7, 7, []float64{
+	// 		10, 0, 0, 0, 1, 0, 0,
+	// 		0, 10, 0, 0, 0, 1, 0,
+	// 		0, 0, 10, 0, 0, 0, 1,
+	// 		0, 0, 0, 10, 0, 0, 0,
+	// 		0, 0, 0, 0, 1000, 0, 0,
+	// 		0, 0, 0, 0, 0, 10, 0,
+	// 		0, 0, 0, 0, 0, 0, 10}),
+	// }
+
+	// ctrl := mat.NewVecDense(7, nil)
+
+	// z := mat.NewVecDense(4, convertBBoxToZ(bbox))
+
 	kf := kalman.NewFilter(
 		lti.Discrete{
 			Ad: mat.NewDense(7, 7, []float64{
@@ -78,18 +129,15 @@ func NewKalmanBoxTracker(bbox []float64) (KalmanBoxTracker, error) {
 			0, 0, 10, 0, 0, 0, 1,
 			0, 0, 0, 10, 0, 0, 0,
 			0, 0, 0, 0, 1000, 0, 0,
-			0, 0, 0, 0, 0, 10, 0,
-			0, 0, 0, 0, 0, 0, 10}),
+			0, 0, 0, 0, 0, 1000, 0,
+			0, 0, 0, 0, 0, 0, 1000}),
 	}
-
-	// self.M = np.zeros((dim_z, dim_z)) # process-measurement cross correlation
-	// self.K = np.zeros((dim_x, dim_z)) # kalman gain
-	// self.S = np.zeros((dim_z, dim_z)) # system uncertainty
-	// self.SI = np.zeros((dim_z, dim_z)) # inverse system uncertainty
 
 	ctrl := mat.NewVecDense(7, nil)
 
 	z := mat.NewVecDense(4, convertBBoxToZ(bbox))
+
+	// log.Printf("Z %v", z)
 
 	kf.Apply(&kctx, z, ctrl)
 

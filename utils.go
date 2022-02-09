@@ -4,6 +4,19 @@ import (
 	"math"
 )
 
+func mathBboxes(bbox1 []float64, bbox2 []float64) bool {
+	if bbox1[0] == bbox2[0] {
+		if bbox1[1] == bbox2[1] {
+			if bbox1[2] == bbox2[2] {
+				if bbox1[3] == bbox2[3] {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 //IOU Computes IUO (Intersection Over Union) between two bboxes in the form [x1,y1,x2,y2]
 func IOU(bbox1 []float64, bbox2 []float64) float64 {
 	xx1 := math.Max(bbox1[0], bbox2[0])

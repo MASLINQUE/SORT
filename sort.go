@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/cpmech/gosl/graph"
 	"github.com/tidwall/gjson"
@@ -194,6 +195,7 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 			}
 
 			v := IOU(detections[d], tbbox) //+ AreaMatch(detections[d], tbbox1) + RatioMatch(detections[d], tbbox1)
+			log.Printf("detection %v, [trackerID %v predict next %v], iou %v", detections[d], trk.ID, tbbox, v)
 			trk.LastBBoxIOU = tbbox
 
 			//invert cost matrix (we want max cost here)

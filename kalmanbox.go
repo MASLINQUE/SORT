@@ -184,25 +184,6 @@ func (k *KalmanBoxTracker) Update(bbox []float64) ([]float64, error) {
 	return residuals, nil
 }
 
-func (k *KalmanBoxTracker) Updatez(bbox []float64) {
-	// if len(bbox) < 4 {
-	// 	return []float64{}, fmt.Errorf("bbox should contain at least 4 positions: x1,y1,x2,y2")
-	// }
-	k.PredictsSinceUpdate = 0
-	// k.history = [][]float64{}
-	k.Updates = k.Updates + 1
-	k.UpdatesWithoutPredict = k.UpdatesWithoutPredict + 1
-	k.LastBBox = bbox
-
-	// cpred := k.CurrentPrediction()
-	// residuals := []float64{bbox[0] - cpred[0], bbox[1] - cpred[1], bbox[2] - cpred[2], bbox[3] - cpred[3]}
-
-	z := mat.NewVecDense(4, convertBBoxToZ(bbox))
-
-	k.KalmanFilter.Apply(k.KalmanCtx, z, k.KalmanCtrl)
-
-	// return residuals, nil
-}
 
 //PredictNext     Advances the state vector and returns the predicted bounding box estimate.
 func (k *KalmanBoxTracker) PredictNext() []float64 {

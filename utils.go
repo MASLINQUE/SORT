@@ -24,9 +24,9 @@ func IOU(bbox1 []float64, bbox2 []float64) float64 {
 	xx2 := math.Min(bbox1[2], bbox2[2])
 	yy2 := math.Min(bbox1[3], bbox2[3]) //was Min
 
-	interArea := math.Max(0., xx2-xx1+1) * math.Max(0, yy2-yy1+1)
-	bbox1Area := (bbox1[2] - bbox1[0] + 1) * (bbox1[3] - bbox1[1] + 1)
-	bbox2Area := (bbox2[2] - bbox2[0] + 1) * (bbox2[3] - bbox2[1] + 1)
+	interArea := math.Max(0., xx2-xx1) * math.Max(0, yy2-yy1)
+	bbox1Area := (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1])
+	bbox2Area := (bbox2[2] - bbox2[0]) * (bbox2[3] - bbox2[1])
 
 	iou := interArea / (bbox1Area + bbox2Area - interArea)
 
@@ -73,19 +73,19 @@ func Area(bbox []float64) float64 {
 }
 
 //ResizeFromCenter resizes a bounding box by a scale factor from its center
-func ResizeFromCenter(bbox []float64, scale float64) []float64 {
-	w := (bbox[2] - bbox[0])
-	h := (bbox[3] - bbox[1])
-	dx := (scale*w - w) / 2.0
-	dy := (scale*h - h) / 2.0
-	// fmt.Printf("bbox %v %f %f", bbox, dx, dy)
-	bbox2 := make([]float64, 4)
-	bbox2[0] = math.Max(bbox[0]-dx, 0)
-	bbox2[1] = math.Max(bbox[1]-dy+h, 0)
-	bbox2[2] = math.Min(bbox[2]+dx, 99999)
-	bbox2[3] = math.Min(bbox[3]+dy+h, 99999)
-	return bbox2
-}
+// func ResizeFromCenter(bbox []float64, scale float64) []float64 {
+// 	w := (bbox[2] - bbox[0])
+// 	h := (bbox[3] - bbox[1])
+// 	dx := (scale*w - w) / 2.0
+// 	dy := (scale*h - h) / 2.0
+// 	// fmt.Printf("bbox %v %f %f", bbox, dx, dy)
+// 	bbox2 := make([]float64, 4)
+// 	bbox2[0] = math.Max(bbox[0]-dx, 0)
+// 	bbox2[1] = math.Max(bbox[1]-dy+h, 0)
+// 	bbox2[2] = math.Min(bbox[2]+dx, 1)
+// 	bbox2[3] = math.Min(bbox[3]+dy+h, 1)
+// 	return bbox2
+// }
 
 //   Takes a bounding box in the form [x1,y1,x2,y2] and returns z in the form
 //     [x,y,s,r] where x,y is the centre of the box and s is the scale/area and r is
@@ -96,7 +96,7 @@ func convertBBoxToZ(bbox []float64) []float64 {
 	x := bbox[0] + w/2.
 	y := bbox[1] + h/2.
 	s := w * h
-	r := w / float64(h)
+	r := w / h
 	return []float64{x, y, s, r}
 }
 

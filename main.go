@@ -18,6 +18,7 @@ var ioutr = flag.Float64("ioutr", 0.4, "IOU threshold")
 var sortCash = map[int64]*SORT{}
 
 func main() {
+	flag.Parse()
 	// logrus.SetLevel(logrus.DebugLevel)
 	s := bufio.NewScanner(os.Stdin)
 	bufsize := 10 << 20

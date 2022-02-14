@@ -12,8 +12,9 @@ import (
 )
 
 var maxpred = flag.Int("maxpred", 3, "Max predicts without update")
-var minupd = flag.Int("minupd", 2, "Min updates use prediction")
+// var minupd = flag.Int("minupd", 2, "Min updates use prediction")
 var ioutr = flag.Float64("ioutr", 0.4, "IOU threshold")
+var maxunm = flag.Int("maxunm", 3, "Max unmatches before delete")
 
 var sortCash = map[int64]*SORT{}
 
@@ -33,7 +34,7 @@ func main() {
 			if sort, ok := sortCash[cam_id]; ok {
 				track(reqdata, sort, image_width, image_height)
 			} else {
-				sort := NewSORT(*maxpred, *minupd, *ioutr)
+				sort := NewSORT(*maxpred, *ioutr, *maxunm)
 				sortCash[cam_id] = &sort
 				track(reqdata, &sort, image_width, image_height)
 			}

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"math"
 
 	"github.com/cpmech/gosl/graph"
 	"github.com/tidwall/gjson"
@@ -12,17 +12,19 @@ import (
 type SORT struct {
 	maxPredictsWithoutUpdate int
 	minUpdatesUsePrediction  int
+	maxUnmatches             int
 	iouThreshold             float64
 	Trackers                 []*KalmanBoxTracker
 	FrameCount               int
 }
 
 //NewSORT initializes a new SORT tracking session
-func NewSORT(maxPredictsWithoutUpdate int, minUpdatesUsePrediction int, iouThreshold float64) SORT {
+func NewSORT(maxPredictsWithoutUpdate int, iouThreshold float64, maxunm int) SORT {
 	return SORT{
 		maxPredictsWithoutUpdate: maxPredictsWithoutUpdate,
-		minUpdatesUsePrediction:  minUpdatesUsePrediction,
+		minUpdatesUsePrediction:  0,
 		iouThreshold:             iouThreshold,
+		maxUnmatches:             maxunm,
 		Trackers:                 make([]*KalmanBoxTracker, 0),
 		FrameCount:               0,
 	}
@@ -113,8 +115,9 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 	delete_ind := []int{}
 	for _, t := range unmatchedTrks {
 		trk := s.Trackers[t]
+		trk.Unmatches += 1
 
-		if trk.PredictsSinceUpdate > s.maxPredictsWithoutUpdate || trk.SkipPredicts > s.minUpdatesUsePrediction+1 {
+		if trk.PredictsSinceUpdate > s.maxPredictsWithoutUpdate || trk.Unmatches >= s.maxUnmatches {
 			delete_ind = append(delete_ind, t)
 		}
 	}
@@ -178,28 +181,52 @@ func associateDetectionsToTrackers(detections [][]float64, trackers []*KalmanBox
 		for t := 0; t < lt; t++ {
 			trk := trackers[t]
 
-			//use simple last bbox if not enough updates in this tracker
-			tbbox := trk.LastBBox
+			lastBbox := trk.LastBBox
+			predictedBbox := trk.LastBBox
 
-			//use prediction
-			if trk.Updates >= minUpdatesUsePrediction {
-				//in this frame request, predict just once
-				if !predicted[t] {
-					tbbox = trk.PredictNext()
-					predicted[t] = true
-				} else {
-					tbbox = trk.CurrentPrediction()
-				}
+			if !predicted[t] {
+				predictedBbox = trk.PredictNext()
+				predicted[t] = true
+				trk.PredictsSinceUpdate += 1
 			} else {
-				trk.SkipPredicts = trk.SkipPredicts + 1
+				predictedBbox = trk.CurrentPrediction()
 			}
 
-			v := IOU(detections[d], tbbox) //+ AreaMatch(detections[d], tbbox1) + RatioMatch(detections[d], tbbox1)
-			log.Printf("detection %v, [trackerID %v predict next %v], iou %v", detections[d], trk.ID, tbbox, v)
-			trk.LastBBoxIOU = tbbox
+			lIOU := IOU(detections[d], lastBbox)
+			pIOu := IOU(detections[d], predictedBbox)
+
+			v := math.Max(lIOU, pIOu)
+
+			if lIOU > pIOu {
+				trk.LastBBoxIOU = lastBbox
+			} else {
+				trk.LastBBoxIOU = predictedBbox
+			}
+
+			ious[d][t] = 1 - v
+			//use simple last bbox if not enough updates in this tracker
+
+			// tbbox := trk.LastBBox
+
+			// //use prediction
+			// if trk.Updates >= minUpdatesUsePrediction {
+			// 	//in this frame request, predict just once
+			// 	if !predicted[t] {
+			// 		tbbox = trk.PredictNext()
+			// 		predicted[t] = true
+			// 	} else {
+			// 		tbbox = trk.CurrentPrediction()
+			// 	}
+			// } else {
+			// 	trk.SkipPredicts = trk.SkipPredicts + 1
+			// }
+
+			// v := IOU(detections[d], tbbox)
+			// log.Printf("detection %v, [trackerID %v predict next %v], iou %v", detections[d], trk.ID, tbbox, v)
+			// trk.LastBBoxIOU = tbbox
 
 			//invert cost matrix (we want max cost here)
-			ious[d][t] = 1 - v
+			// ious[d][t] = 1 - v
 		}
 	}
 	// log.Printf("ious matrix %v", ious)

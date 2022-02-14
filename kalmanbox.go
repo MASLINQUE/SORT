@@ -17,6 +17,7 @@ type KalmanBoxTracker struct {
 	ID                    int64
 	Updates               int
 	Predicts              int
+	Unmatches             int
 	PredictsSinceUpdate   int
 	UpdatesWithoutPredict int
 	SkipPredicts          int
@@ -148,6 +149,7 @@ func NewKalmanBoxTracker(bbox []float64) (KalmanBoxTracker, error) {
 		Updates:               0,
 		UpdatesWithoutPredict: 0,
 		Predicts:              0,
+		Unmatches:             0,
 		PredictsSinceUpdate:   0,
 		LastBBox:              bbox,
 		KalmanFilter:          kf,
@@ -183,7 +185,6 @@ func (k *KalmanBoxTracker) Update(bbox []float64) ([]float64, error) {
 
 	return residuals, nil
 }
-
 
 //PredictNext     Advances the state vector and returns the predicted bounding box estimate.
 func (k *KalmanBoxTracker) PredictNext() []float64 {

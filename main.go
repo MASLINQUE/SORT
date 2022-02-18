@@ -12,7 +12,7 @@ import (
 )
 
 var maxpred = flag.Int("maxpred", 3, "Max predicts without update")
-// var minupd = flag.Int("minupd", 2, "Min updates use prediction")
+var predunm = flag.Bool("predunm", false, "Use prediction on unmatched trackers")
 var ioutr = flag.Float64("ioutr", 0.4, "IOU threshold")
 var maxunm = flag.Int("maxunm", 3, "Max unmatches before delete")
 
@@ -34,7 +34,7 @@ func main() {
 			if sort, ok := sortCash[cam_id]; ok {
 				track(reqdata, sort, image_width, image_height)
 			} else {
-				sort := NewSORT(*maxpred, *ioutr, *maxunm)
+				sort := NewSORT(*maxpred, *ioutr, *maxunm, *predunm)
 				sortCash[cam_id] = &sort
 				track(reqdata, &sort, image_width, image_height)
 			}

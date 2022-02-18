@@ -13,16 +13,18 @@ type SORT struct {
 	maxPredictsWithoutUpdate int
 	minUpdatesUsePrediction  int
 	maxUnmatches             int
+	predUnmatches            bool
 	iouThreshold             float64
 	Trackers                 []*KalmanBoxTracker
 	FrameCount               int
 }
 
 //NewSORT initializes a new SORT tracking session
-func NewSORT(maxPredictsWithoutUpdate int, iouThreshold float64, maxunm int) SORT {
+func NewSORT(maxPredictsWithoutUpdate int, iouThreshold float64, maxunm int, predunm bool) SORT {
 	return SORT{
 		maxPredictsWithoutUpdate: maxPredictsWithoutUpdate,
 		minUpdatesUsePrediction:  0,
+		predUnmatches:            predunm,
 		iouThreshold:             iouThreshold,
 		maxUnmatches:             maxunm,
 		Trackers:                 make([]*KalmanBoxTracker, 0),
@@ -116,6 +118,9 @@ func (s *SORT) Update(items []gjson.Result, width float64, height float64) ([][]
 	for _, t := range unmatchedTrks {
 		trk := s.Trackers[t]
 		trk.Unmatches += 1
+		if s.predUnmatches {
+			trk.LastBBox = trk.PredictNext()
+		}
 
 		if trk.PredictsSinceUpdate > s.maxPredictsWithoutUpdate || trk.Unmatches >= s.maxUnmatches {
 			delete_ind = append(delete_ind, t)
